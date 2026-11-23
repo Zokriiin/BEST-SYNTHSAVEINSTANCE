@@ -49,6 +49,7 @@ local filePath = folder .. "/place.rbxlx"
 
 ensureFolder(folder)
 print("[Archive] Output folder:", folder, "| exists:", isfolder and isfolder(folder))
+print("[Archive] appendfile available:", typeof(appendfile) == "function")
 
 print("[Archive] Loading Universal Syn SaveInstance...")
 
@@ -72,8 +73,9 @@ local options = {
     ShowStatus = true,
     ReadMe = false,
 
-    -- Write the file in one writefile call instead of appendfile pieces.
-    AlternativeWritefile = false,
+    -- Write the file in ~4 MB pieces with appendfile. Solara's writefile
+    -- crashes when given the whole XML place in one call.
+    AlternativeWritefile = true,
 
     Decompile = DECOMPILE,
 }
