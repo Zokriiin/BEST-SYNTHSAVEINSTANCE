@@ -1,55 +1,16 @@
+local Params = {
+    RepoURL = "https://raw.githubusercontent.com/rbxlx/SynSaveInstance/main/",
+    SSI = "saveinstance",
+}
 
--- SOLARA NATIVE PLACE ARCHIVER
--- Saves an XML .rbxlx snapshot.
+local synsaveinstance = loadstring(
+    game:HttpGet(Params.RepoURL .. Params.SSI .. ".luau", true),
+    Params.SSI
+)()
 
-local MarketplaceService = game:GetService("MarketplaceService")
+local CustomOptions = {
+    SafeMode = false,
+    FilePath = "place_archive",
+}
 
-local placeName = "Place"
-
-pcall(function()
-    local info = MarketplaceService:GetProductInfo(game.PlaceId)
-    if info and info.Name then
-        placeName = info.Name
-    end
-end)
-
-local function safeName(str)
-    return tostring(str):gsub("[^%w%-%._]", "_"):sub(1, 100)
-end
-
-local folder = "place_archives/" ..
-    safeName(placeName) .. "_" .. tostring(game.PlaceId)
-
-if not isfolder("place_archives") then
-    makefolder("place_archives")
-end
-
-if not isfolder(folder) then
-    makefolder(folder)
-end
-
-print("[Archive] Starting Solara native saveinstance...")
-
-if type(saveinstance) ~= "function" then
-    warn("[Archive] Solara saveinstance() is unavailable.")
-    return
-end
-
-local ok, err = pcall(function()
-    saveinstance({
-        mode = "full",
-        FilePath = folder .. "/place.rbxlx",
-        Binary = false,
-        Decompile = true,
-        SafeMode = true,
-        ShowStatus = true,
-        ReadMe = true,
-    })
-end)
-
-if ok then
-    print("[Archive] Save operation finished.")
-    print("[Archive] Expected file: " .. folder .. "/place.rbxlx")
-else
-    warn("[Archive] Save failed: " .. tostring(err))
-end
+synsaveinstance(CustomOptions)
