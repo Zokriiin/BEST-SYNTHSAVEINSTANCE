@@ -18,6 +18,7 @@ end
 
 local options = {
     FilePath = "place_archive_test",
+    Binary = false, -- always save as XML (.rbxlx)
     SafeMode = false,
     ShowStatus = true,
     ReadMe = false,
