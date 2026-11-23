@@ -151,7 +151,7 @@ if SAVE_PLACE then
 
     local saveOK, saveErr = pcall(function()
         local baseURL =
-            "https://raw.githubusercontent.com/luau/UniversalSynSaveInstance/main/"
+            "https://raw.githubusercontent.com/rbxlx/SynSaveInstance/main/"
 
         local loader = game:HttpGet(baseURL .. "saveinstance.luau", true)
         local synsaveinstance = loadstring(loader, "saveinstance")()
