@@ -1,16 +1,41 @@
-local Params = {
-    RepoURL = "https://raw.githubusercontent.com/rbxlx/SynSaveInstance/main/",
-    SSI = "saveinstance",
-}
+local RepoURL = "https://raw.githubusercontent.com/rbxlx/SynSaveInstance/main/"
+local SSI = "saveinstance"
 
-local synsaveinstance = loadstring(
-    game:HttpGet(Params.RepoURL .. Params.SSI .. ".luau", true),
-    Params.SSI
-)()
+print("[Archive] Loading Universal Syn SaveInstance...")
 
-local CustomOptions = {
+local okDl, source = pcall(game.HttpGet, game, RepoURL .. SSI .. ".luau", true)
+print("[Archive] Download:", okDl, okDl and #source .. " chars" or source)
+if not okDl then return end
+
+local synsaveinstance = loadstring(source, SSI)()
+
+print("[Archive] Loader returned:", typeof(synsaveinstance))
+
+if typeof(synsaveinstance) ~= "function" then
+    warn("[Archive] Loader did not return a function.")
+    return
+end
+
+local options = {
+    FilePath = "place_archive_test",
     SafeMode = false,
-    FilePath = "place_archive",
+    ShowStatus = true,
+    ReadMe = false,
+
+    -- Test the normal writefile route instead of appendfile.
+    AlternativeWritefile = false,
+
+    -- Avoid unnecessary decompilation during this test.
+    noscripts = true,
 }
 
-synsaveinstance(CustomOptions)
+print("[Archive] Starting save...")
+local success, result = pcall(function()
+    return synsaveinstance(options)
+end)
+
+print("[Archive] Save call finished.")
+print("[Archive] Success:", success)
+print("[Archive] Result:", tostring(result))
+print("[Archive] .rbxlx exists:", isfile("place_archive_test.rbxlx"))
+print("[Archive] .rbxl exists:", isfile("place_archive_test.rbxl"))
