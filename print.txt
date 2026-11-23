@@ -1,6 +1,13 @@
-print("saveinstance:", typeof(saveinstance))
-print("writefile:", typeof(writefile))
-print("makefolder:", typeof(makefolder))
-print("isfolder:", typeof(isfolder))
-print("loadstring:", typeof(loadstring))
-print("HttpGet:", typeof(game.HttpGet))
+local path = "place_archives/test_write.txt"
+
+local ok, err = pcall(function()
+    writefile(path, "Archive filesystem test")
+end)
+
+print("Write successful:", ok)
+print("Write error:", tostring(err))
+print("File exists:", isfile(path))
+
+if isfile(path) then
+    print("File contents:", readfile(path))
+end
