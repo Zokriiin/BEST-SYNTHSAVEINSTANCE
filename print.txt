@@ -1,10 +1,23 @@
 -- Tests which file types Solara's writefile accepts.
-if not isfolder("place_archives") then
-    makefolder("place_archives")
-end
+-- Prints before every step, so the last line shown is where it stopped.
+print("[ExtTest] 1. Script started")
+
+local okFolder, folderErr = pcall(function()
+    if not isfolder("place_archives") then
+        makefolder("place_archives")
+    end
+end)
+print("[ExtTest] 2. Folder check:", okFolder, tostring(folderErr))
 
 for _, ext in ipairs({ "txt", "rbxl", "rbxlx" }) do
     local path = "place_archives/ext_test." .. ext
+    print("[ExtTest] 3. Writing", path)
+
     local ok, err = pcall(writefile, path, "hello")
-    print(ext, "write ok:", ok, "| error:", tostring(err), "| exists:", isfile(path))
+    print("[ExtTest]    write ok:", ok, "| error:", tostring(err))
+
+    local okExists, exists = pcall(isfile, path)
+    print("[ExtTest]    exists:", okExists and exists or ("isfile error: " .. tostring(exists)))
 end
+
+print("[ExtTest] 4. Done")
