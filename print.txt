@@ -1,0 +1,6 @@
+print("saveinstance:", typeof(saveinstance))
+print("writefile:", typeof(writefile))
+print("makefolder:", typeof(makefolder))
+print("isfolder:", typeof(isfolder))
+print("loadstring:", typeof(loadstring))
+print("HttpGet:", typeof(game.HttpGet))
