@@ -3,10 +3,11 @@
     COMBINED ROBLOX ARCHIVER
     Output:
     game_dumps/<PlaceName>_<PlaceId>/
-        place.rbxlx
         Scripts/
         manifest.txt
         failures.txt
+    place_archives/<PlaceName>_<PlaceId>/
+        place.rbxlx
 
     Requires executor filesystem functions:
     makefolder, writefile, isfolder (optional)
@@ -18,6 +19,7 @@ local MarketplaceService = game:GetService("MarketplaceService")
 
 -- CONFIG
 local ROOT_FOLDER = "game_dumps"
+local PLACE_ROOT_FOLDER = "place_archives"
 local SAVE_PLACE = true
 local DUMP_SCRIPTS = true
 
@@ -36,8 +38,10 @@ local function safeName(str)
         :sub(1, 100)
 end
 
-local folder = ROOT_FOLDER .. "/" ..
-    safeName(placeName) .. "_" .. tostring(game.PlaceId)
+local placeFolderName = safeName(placeName) .. "_" .. tostring(game.PlaceId)
+local folder = ROOT_FOLDER .. "/" .. placeFolderName
+local placeFolder = PLACE_ROOT_FOLDER .. "/" .. placeFolderName
+local placeFile = placeFolder .. "/place.rbxlx"
 
 local scriptsFolder = folder .. "/Scripts"
 
@@ -61,8 +65,10 @@ local function ensureFolder(path)
     end
 end
 
-ensureFolder(ROOT_FOLDER)
 ensureFolder(folder)
+if SAVE_PLACE then
+    ensureFolder(placeFolder)
+end
 
 local manifest = {
     "Roblox Experience Archive",
@@ -159,7 +165,7 @@ if SAVE_PLACE then
         synsaveinstance({
             mode = "full",
             Binary = false,
-            FilePath = folder .. "/place.rbxlx",
+            FilePath = placeFile,
             Decompile = true,
             ReadMe = true,
             ShowStatus = true,
@@ -169,8 +175,10 @@ if SAVE_PLACE then
     end)
 
     if saveOK then
-        table.insert(manifest, "Place archive: requested")
-        print("[Archive] Place save completed.")
+        local exists = isfile and isfile(placeFile)
+        table.insert(manifest, "Place archive: " .. placeFile ..
+            (exists and "" or " (NOT FOUND after save)"))
+        print("[Archive] Place save completed. File exists:", exists, "->", placeFile)
     else
         table.insert(manifest, "Place archive: FAILED")
         table.insert(failures, "USSI error: " .. tostring(saveErr))
@@ -190,7 +198,10 @@ end)
 
 print("--------------------------------")
 print("[Archive] Finished.")
-print("Folder: " .. folder)
+print("Scripts folder: " .. folder)
+if SAVE_PLACE then
+    print("Place file: " .. placeFile)
+end
 print("Scripts exported: " .. dumped)
 print("Duplicates skipped: " .. duplicates)
 print("Failures: " .. #failures)

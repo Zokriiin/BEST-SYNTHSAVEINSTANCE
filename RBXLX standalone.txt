@@ -1,5 +1,54 @@
+--[[
+    STANDALONE ROBLOX PLACE ARCHIVER
+    Output:
+    workspace/place_archives/<PlaceName>_<PlaceId>/place.rbxlx
+]]
+
+-- CONFIG
+local ROOT_FOLDER = "place_archives"
+local DECOMPILE = false -- true = include decompiled script sources (much slower)
+
 local RepoURL = "https://raw.githubusercontent.com/rbxlx/SynSaveInstance/main/"
 local SSI = "saveinstance"
+
+local MarketplaceService = game:GetService("MarketplaceService")
+
+-- Get experience name
+local placeName = "Place"
+pcall(function()
+    local info = MarketplaceService:GetProductInfo(game.PlaceId)
+    if info and info.Name then
+        placeName = info.Name
+    end
+end)
+
+local function safeName(str)
+    return (tostring(str):gsub("[^%w%-%._]", "_")):sub(1, 100)
+end
+
+local function ensureFolder(path)
+    local current = ""
+    for part in path:gmatch("[^/]+") do
+        current = current == "" and part or current .. "/" .. part
+        local exists = false
+        if isfolder then
+            pcall(function()
+                exists = isfolder(current)
+            end)
+        end
+        if not exists then
+            pcall(function()
+                makefolder(current)
+            end)
+        end
+    end
+end
+
+local folder = ROOT_FOLDER .. "/" .. safeName(placeName) .. "_" .. tostring(game.PlaceId)
+local filePath = folder .. "/place.rbxlx"
+
+ensureFolder(folder)
+print("[Archive] Output folder:", folder, "| exists:", isfolder and isfolder(folder))
 
 print("[Archive] Loading Universal Syn SaveInstance...")
 
@@ -17,17 +66,16 @@ if typeof(synsaveinstance) ~= "function" then
 end
 
 local options = {
-    FilePath = "place_archive_test",
+    FilePath = filePath,
     Binary = false, -- always save as XML (.rbxlx)
     SafeMode = false,
     ShowStatus = true,
     ReadMe = false,
 
-    -- Test the normal writefile route instead of appendfile.
+    -- Write the file in one writefile call instead of appendfile pieces.
     AlternativeWritefile = false,
 
-    -- Avoid unnecessary decompilation during this test.
-    noscripts = true,
+    Decompile = DECOMPILE,
 }
 
 print("[Archive] Starting save...")
@@ -38,5 +86,4 @@ end)
 print("[Archive] Save call finished.")
 print("[Archive] Success:", success)
 print("[Archive] Result:", tostring(result))
-print("[Archive] .rbxlx exists:", isfile("place_archive_test.rbxlx"))
-print("[Archive] .rbxl exists:", isfile("place_archive_test.rbxl"))
+print("[Archive] File exists:", isfile(filePath), "->", filePath)
