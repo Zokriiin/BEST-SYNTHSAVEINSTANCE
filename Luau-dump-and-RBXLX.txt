@@ -22,6 +22,9 @@ local ROOT_FOLDER = "game_dumps"
 local PLACE_ROOT_FOLDER = "place_archives"
 local SAVE_PLACE = true
 local DUMP_SCRIPTS = true
+-- Also decompile scripts into place.rbxlx. Scripts are already dumped to
+-- game_dumps, so this is off by default: it is slow and can hang in Solara.
+local PLACE_DECOMPILE = false
 
 -- Get experience name
 local placeName = "Place"
@@ -154,23 +157,34 @@ table.insert(manifest, "Script failures: " .. failed)
 -- STEP 2: SAVE THE PLACE AS XML
 if SAVE_PLACE then
     print("[Archive] Loading Universal Syn SaveInstance...")
+    print("[Archive] appendfile available:", typeof(appendfile) == "function")
 
     local saveOK, saveErr = pcall(function()
         local baseURL =
             "https://raw.githubusercontent.com/rbxlx/SynSaveInstance/main/"
 
         local loader = game:HttpGet(baseURL .. "saveinstance.luau", true)
-        local synsaveinstance = loadstring(loader, "saveinstance")()
+        print("[Archive] Download: " .. #loader .. " chars")
 
+        local synsaveinstance = loadstring(loader, "saveinstance")()
+        if typeof(synsaveinstance) ~= "function" then
+            error("Loader did not return a function (got " .. typeof(synsaveinstance) .. ")")
+        end
+
+        print("[Archive] Saving place to " .. placeFile .. " ...")
         synsaveinstance({
             mode = "full",
-            Binary = false,
+            Binary = false, -- always save as XML (.rbxlx)
             FilePath = placeFile,
-            Decompile = true,
+            Decompile = PLACE_DECOMPILE,
             ReadMe = true,
             ShowStatus = true,
             SafeMode = false,
             AvoidFileOverwrite = false,
+
+            -- Write in ~4 MB pieces with appendfile. Solara's writefile
+            -- crashes when given the whole XML place in one call.
+            AlternativeWritefile = true,
         })
     end)
 
