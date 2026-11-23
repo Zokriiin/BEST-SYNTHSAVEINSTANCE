@@ -1,0 +1,168 @@
+local ok, info = pcall(function()
+    return game:GetService("MarketplaceService"):GetProductInfo(game.PlaceId)
+end)
+
+local game_name = ok and info and info.Name or tostring(game.PlaceId)
+local folder = "game_dumps/" .. (game_name:gsub("[^%w%-%._]", "_")):sub(1, 50)
+
+-- Canonical script sources.
+local sources = {
+    ReplicatedStorage = game:GetService("ReplicatedStorage"),
+    ReplicatedFirst = game:GetService("ReplicatedFirst"),
+    StarterPack = game:GetService("StarterPack"),
+    StarterGui = game:GetService("StarterGui"),
+    StarterPlayerScripts = game:GetService("StarterPlayer").StarterPlayerScripts,
+    StarterCharacterScripts = game:GetService("StarterPlayer").StarterCharacterScripts,
+    Workspace = game:GetService("Workspace"),
+    Lighting = game:GetService("Lighting"),
+    SoundService = game:GetService("SoundService"),
+    Chat = game:GetService("Chat"),
+}
+
+local lp = game:GetService("Players").LocalPlayer
+
+if lp then
+    local ps = lp:FindFirstChild("PlayerScripts")
+    local pg = lp:FindFirstChild("PlayerGui")
+    local bp = lp:FindFirstChild("Backpack")
+    local ch = lp.Character or lp.CharacterAdded:Wait()
+
+    if ps then sources["LocalPlayer_PlayerScripts"] = ps end
+    if pg then sources["LocalPlayer_PlayerGui"] = pg end
+    if bp then sources["LocalPlayer_Backpack"] = bp end
+    if ch then sources["LocalPlayer_Character"] = ch end
+end
+
+local function safe(name)
+    return (name:gsub("[^%w%-%._]", "_")):sub(1, 80)
+end
+
+local function ensureFolder(path)
+    if isfolder and isfolder(path) then
+        return true
+    end
+
+    local ok = pcall(function()
+        makefolder(path)
+    end)
+
+    if isfolder then
+        return isfolder(path)
+    end
+
+    return ok
+end
+
+if not ensureFolder("game_dumps") or not ensureFolder(folder) then
+    error("Failed to create output directories: " .. folder)
+end
+
+local stats = {
+    dumped = 0,
+    duplicates = 0,
+    extraction_failed = 0,
+    write_failed = 0,
+    source_property = 0,
+    decompiled = 0,
+}
+
+local seen = {}
+local duplicate_locations = {}
+local failed_scripts = {}
+
+for service_name, root in pairs(sources) do
+    local service_folder = folder .. "/" .. service_name
+
+    if not ensureFolder(service_folder) then
+        failed_scripts[#failed_scripts + 1] =
+            service_folder .. " | FOLDER CREATION FAILED"
+        continue
+    end
+
+    for _, obj in ipairs(root:GetDescendants()) do
+        if obj:IsA("LocalScript")
+            or obj:IsA("ModuleScript")
+            or obj:IsA("Script") then
+
+            local source_ok, src = pcall(function()
+                return obj.Source
+            end)
+
+            if source_ok and type(src) == "string" and src ~= "" then
+                stats.source_property = stats.source_property + 1
+            else
+                source_ok, src = pcall(function()
+                    return decompile(obj)
+                end)
+
+                if source_ok and type(src) == "string" and src ~= "" then
+                    stats.decompiled = stats.decompiled + 1
+                else
+                    stats.extraction_failed = stats.extraction_failed + 1
+
+                    failed_scripts[#failed_scripts + 1] =
+                        obj:GetFullName() .. " | SOURCE EXTRACTION FAILED"
+                end
+            end
+
+            if source_ok and type(src) == "string" and src ~= "" then
+                local rel = obj:GetFullName():gsub(
+                    "^" .. service_name .. "%.",
+                    ""
+                )
+
+                local path = service_folder .. "/" .. safe(rel) .. ".lua"
+                local existing_path = seen[src]
+
+                if existing_path then
+                    stats.duplicates = stats.duplicates + 1
+
+                    duplicate_locations[#duplicate_locations + 1] =
+                        existing_path .. " <-> " .. path
+                else
+                    local write_ok, write_error = pcall(function()
+                        writefile(path, src)
+                    end)
+
+                    if write_ok then
+                        seen[src] = path
+                        stats.dumped = stats.dumped + 1
+                    else
+                        stats.write_failed = stats.write_failed + 1
+
+                        failed_scripts[#failed_scripts + 1] =
+                            path .. " | WRITE ERROR: " .. tostring(write_error)
+                    end
+                end
+            end
+        end
+    end
+end
+
+print("========== DUMP COMPLETE ==========")
+print("Output: " .. folder)
+print("Successfully saved: " .. stats.dumped)
+print("Duplicates: " .. stats.duplicates)
+print("Source property: " .. stats.source_property)
+print("Decompiled: " .. stats.decompiled)
+print("Extraction failures: " .. stats.extraction_failed)
+print("Write failures: " .. stats.write_failed)
+print("===================================")
+
+if #duplicate_locations > 0 then
+    pcall(function()
+        writefile(
+            folder .. "/duplicates.txt",
+            table.concat(duplicate_locations, "\n")
+        )
+    end)
+end
+
+if #failed_scripts > 0 then
+    pcall(function()
+        writefile(
+            folder .. "/failures.txt",
+            table.concat(failed_scripts, "\n")
+        )
+    end)
+end
