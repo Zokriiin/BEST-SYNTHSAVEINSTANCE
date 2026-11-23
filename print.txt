@@ -1,13 +1,10 @@
-local path = "place_archives/test_write.txt"
+-- Tests which file types Solara's writefile accepts.
+if not isfolder("place_archives") then
+    makefolder("place_archives")
+end
 
-local ok, err = pcall(function()
-    writefile(path, "Archive filesystem test")
-end)
-
-print("Write successful:", ok)
-print("Write error:", tostring(err))
-print("File exists:", isfile(path))
-
-if isfile(path) then
-    print("File contents:", readfile(path))
+for _, ext in ipairs({ "txt", "rbxl", "rbxlx" }) do
+    local path = "place_archives/ext_test." .. ext
+    local ok, err = pcall(writefile, path, "hello")
+    print(ext, "write ok:", ok, "| error:", tostring(err), "| exists:", isfile(path))
 end
