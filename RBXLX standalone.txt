@@ -1,0 +1,80 @@
+
+--[[
+    STANDALONE ROBLOX PLACE ARCHIVER
+    Output:
+    place_archives/<PlaceName>_<PlaceId>/place.rbxlx
+]]
+
+local MarketplaceService = game:GetService("MarketplaceService")
+
+-- CONFIG
+local ROOT_FOLDER = "place_archives"
+
+local placeName = "Place"
+pcall(function()
+    local info = MarketplaceService:GetProductInfo(game.PlaceId)
+    if info and info.Name then
+        placeName = info.Name
+    end
+end)
+
+local function safeName(str)
+    return tostring(str)
+        :gsub("[^%w%-%._]", "_")
+        :sub(1, 100)
+end
+
+local folder = ROOT_FOLDER .. "/" ..
+    safeName(placeName) .. "_" .. tostring(game.PlaceId)
+
+local function ensureFolder(path)
+    local current = ""
+
+    for part in path:gmatch("[^/]+") do
+        current = current == "" and part or current .. "/" .. part
+
+        local exists = false
+        if isfolder then
+            pcall(function()
+                exists = isfolder(current)
+            end)
+        end
+
+        if not exists then
+            pcall(function()
+                makefolder(current)
+            end)
+        end
+    end
+end
+
+ensureFolder(ROOT_FOLDER)
+ensureFolder(folder)
+
+print("[USSI] Loading serializer...")
+
+local ok, err = pcall(function()
+    local baseURL =
+        "https://raw.githubusercontent.com/luau/UniversalSynSaveInstance/main/"
+
+    local loader = game:HttpGet(baseURL .. "saveinstance.luau", true)
+    local synsaveinstance = loadstring(loader, "saveinstance")()
+
+    synsaveinstance({
+        mode = "full",
+        Binary = false,
+        FilePath = folder .. "/place.rbxlx",
+        Decompile = true,
+        ReadMe = true,
+        ShowStatus = true,
+        SafeMode = false,
+        AvoidFileOverwrite = false,
+    })
+end)
+
+if ok then
+    print("[USSI] Save completed.")
+    print("[USSI] Output: " .. folder .. "/place.rbxlx")
+else
+    warn("[USSI] Save failed: " .. tostring(err))
+end

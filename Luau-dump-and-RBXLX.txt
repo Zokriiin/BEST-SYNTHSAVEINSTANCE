@@ -1,0 +1,197 @@
+
+--[[
+    COMBINED ROBLOX ARCHIVER
+    Output:
+    game_dumps/<PlaceName>_<PlaceId>/
+        place.rbxlx
+        Scripts/
+        manifest.txt
+        failures.txt
+
+    Requires executor filesystem functions:
+    makefolder, writefile, isfolder (optional)
+    and loadstring + game:HttpGet for USSI.
+]]
+
+local HttpService = game:GetService("HttpService")
+local MarketplaceService = game:GetService("MarketplaceService")
+
+-- CONFIG
+local ROOT_FOLDER = "game_dumps"
+local SAVE_PLACE = true
+local DUMP_SCRIPTS = true
+
+-- Get experience name
+local placeName = "Place"
+pcall(function()
+    local info = MarketplaceService:GetProductInfo(game.PlaceId)
+    if info and info.Name then
+        placeName = info.Name
+    end
+end)
+
+local function safeName(str)
+    return tostring(str)
+        :gsub("[^%w%-%._]", "_")
+        :sub(1, 100)
+end
+
+local folder = ROOT_FOLDER .. "/" ..
+    safeName(placeName) .. "_" .. tostring(game.PlaceId)
+
+local scriptsFolder = folder .. "/Scripts"
+
+local function ensureFolder(path)
+    local current = ""
+    for part in path:gmatch("[^/]+") do
+        current = current == "" and part or current .. "/" .. part
+        local exists = false
+
+        if isfolder then
+            pcall(function()
+                exists = isfolder(current)
+            end)
+        end
+
+        if not exists then
+            pcall(function()
+                makefolder(current)
+            end)
+        end
+    end
+end
+
+ensureFolder(ROOT_FOLDER)
+ensureFolder(folder)
+
+local manifest = {
+    "Roblox Experience Archive",
+    "Name: " .. placeName,
+    "PlaceId: " .. tostring(game.PlaceId),
+    "JobId: " .. tostring(game.JobId),
+    "Date: " .. os.date("%Y-%m-%d %H:%M:%S"),
+    "",
+}
+
+local failures = {}
+local dumped, duplicates, failed = 0, 0, 0
+
+-- STEP 1: DUMP CLIENT-ACCESSIBLE SCRIPT SOURCES
+if DUMP_SCRIPTS then
+    ensureFolder(scriptsFolder)
+
+    local seen = {}
+    local index = 0
+
+    for _, obj in ipairs(game:GetDescendants()) do
+        if obj:IsA("LocalScript")
+            or obj:IsA("ModuleScript")
+            or obj:IsA("Script") then
+
+            index += 1
+
+            local ok, source = pcall(function()
+                return obj.Source
+            end)
+
+            if not ok or type(source) ~= "string" or source == "" then
+                if type(decompile) == "function" then
+                    ok, source = pcall(function()
+                        return decompile(obj)
+                    end)
+                end
+            end
+
+            if ok and type(source) == "string" and source ~= "" then
+                if seen[source] then
+                    duplicates += 1
+                else
+                    seen[source] = true
+
+                    local fullName = "Unknown"
+                    pcall(function()
+                        fullName = obj:GetFullName()
+                    end)
+
+                    local filename = string.format(
+                        "%04d_%s.lua",
+                        index,
+                        safeName(fullName)
+                    )
+
+                    local path = scriptsFolder .. "/" .. filename
+                    local writeOK, writeErr = pcall(function()
+                        writefile(path, source)
+                    end)
+
+                    if writeOK then
+                        dumped += 1
+                    else
+                        failed += 1
+                        table.insert(failures,
+                            path .. " | write failed: " .. tostring(writeErr))
+                    end
+                end
+            else
+                failed += 1
+                table.insert(failures,
+                    tostring(obj) .. " | source unavailable")
+            end
+        end
+    end
+end
+
+table.insert(manifest, "Scripts exported: " .. dumped)
+table.insert(manifest, "Duplicates skipped: " .. duplicates)
+table.insert(manifest, "Script failures: " .. failed)
+
+-- STEP 2: SAVE THE PLACE AS XML
+if SAVE_PLACE then
+    print("[Archive] Loading Universal Syn SaveInstance...")
+
+    local saveOK, saveErr = pcall(function()
+        local baseURL =
+            "https://raw.githubusercontent.com/luau/UniversalSynSaveInstance/main/"
+
+        local loader = game:HttpGet(baseURL .. "saveinstance.luau", true)
+        local synsaveinstance = loadstring(loader, "saveinstance")()
+
+        synsaveinstance({
+            mode = "full",
+            Binary = false,
+            FilePath = folder .. "/place.rbxlx",
+            Decompile = true,
+            ReadMe = true,
+            ShowStatus = true,
+            SafeMode = false,
+            AvoidFileOverwrite = false,
+        })
+    end)
+
+    if saveOK then
+        table.insert(manifest, "Place archive: requested")
+        print("[Archive] Place save completed.")
+    else
+        table.insert(manifest, "Place archive: FAILED")
+        table.insert(failures, "USSI error: " .. tostring(saveErr))
+        warn("[Archive] USSI failed: " .. tostring(saveErr))
+    end
+end
+
+-- STEP 3: WRITE REPORTS
+pcall(function()
+    writefile(folder .. "/manifest.txt", table.concat(manifest, "\n"))
+end)
+
+pcall(function()
+    writefile(folder .. "/failures.txt",
+        #failures > 0 and table.concat(failures, "\n") or "No failures recorded.")
+end)
+
+print("--------------------------------")
+print("[Archive] Finished.")
+print("Folder: " .. folder)
+print("Scripts exported: " .. dumped)
+print("Duplicates skipped: " .. duplicates)
+print("Failures: " .. #failures)
+print("--------------------------------")
